@@ -1,20 +1,22 @@
-import requests
+from aiohttp import ClientSession
 import time
 
 class Cricbuzz():
 	def __init__(self):
 		pass
 
-	def crawl_url(self,url):
+	async def crawl_url(self,url):
 		try:
-			r = requests.get(url).json()
-			return r
+			async with ClientSession() as session:
+				async with session.get(url) as response:
+					r = await response.json()
+					return r
 		except Exception:
 			raise
 
-	def players_mapping(self,mid):
+	async def players_mapping(self,mid):
 		url = "http://mapps.cricbuzz.com/cbzios/match/" + mid
-		match = self.crawl_url(url)
+		match = await self.crawl_url(url)
 		players = match.get('players')
 		d = {}
 		for p in players:
@@ -24,11 +26,11 @@ class Cricbuzz():
 		t[int(match.get('team2').get('id'))] = match.get('team2').get('name')
 		return d,t
 
-	def matchinfo(self,mid):
+	async def matchinfo(self,mid):
 		d = {}
 		d['id'] = mid
 		url = "http://mapps.cricbuzz.com/cbzios/match/" + mid
-		match = self.crawl_url(url)
+		match = await self.crawl_url(url)
 
 		d['srs'] = match.get('series_name')
 		d['mnum'] = match.get('header',).get('match_desc')
@@ -43,7 +45,7 @@ class Cricbuzz():
 
 
 		#squads
-		p_map,_ = self.players_mapping(mid)
+		p_map,_ = await self.players_mapping(mid)
 		team1 = {}
 		team1['name'] = match.get('team1').get('name')
 		t1_s = match.get('team1').get('squad')
@@ -68,19 +70,19 @@ class Cricbuzz():
 		d['team2'] = team2
 		return d
 
-	def matches(self):
+	async def matches(self):
 		url = "http://mapps.cricbuzz.com/cbzios/match/livematches"
-		crawled_content = self.crawl_url(url)
+		crawled_content = await self.crawl_url(url)
 		matches = crawled_content['matches']
 		info = []
 
 		for match in matches:
-			info.append(self.matchinfo(match['match_id']))
+			info.append(await self.matchinfo(match['match_id']))
 		return info
 
-	def find_match(self,id):
+	async def find_match(self,id):
 		url = "http://mapps.cricbuzz.com/cbzios/match/livematches"
-		crawled_content = self.crawl_url(url)
+		crawled_content = await self.crawl_url(url)
 		matches = crawled_content['matches']
 
 		for match in matches:
@@ -88,10 +90,10 @@ class Cricbuzz():
 				return match
 		return None
 
-	def livescore(self,mid):
+	async def livescore(self,mid):
 		data = {}
 		try:
-			comm = self.find_match(mid)
+			comm = await self.find_match(mid)
 			if comm is None:
 				return data
 			batting = comm.get('bat_team')
@@ -137,11 +139,12 @@ class Cricbuzz():
 		except Exception:
 			raise
 
-	def commentary(self,mid):
+	async def commentary(self,mid):
 		data = {}
 		try:
 			url =  "http://mapps.cricbuzz.com/cbzios/match/" + mid + "/commentary"
-			comm = self.crawl_url(url).get('comm_lines')
+			comm = await self.crawl_url(url)
+			comm = comm.get('comm_lines')
 			d = []
 			for c in comm:
 				if "comm" in c:
@@ -151,11 +154,11 @@ class Cricbuzz():
 		except Exception:
 			raise
 
-	def scorecard(self,mid):
+	async def scorecard(self,mid):
 		try:
 			url = "http://mapps.cricbuzz.com/cbzios/match/" +  mid + "/scorecard.json"
-			scard = self.crawl_url(url)
-			p_map,t_map = self.players_mapping(mid)
+			scard = await self.crawl_url(url)
+			p_map,t_map = await self.players_mapping(mid)
 
 			innings = scard.get('Innings')
 			data = {}
@@ -201,11 +204,12 @@ class Cricbuzz():
 		except Exception:
 			raise
 
-	def fullcommentary(self,mid):
+	async def fullcommentary(self,mid):
 		data = {}
 		try:
 			url =  "https://www.cricbuzz.com/match-api/"+mid+"/commentary-full.json"
-			comm = self.crawl_url(url).get('comm_lines')
+			comm = await self.crawl_url(url)
+			comm = comm.get('comm_lines')
 			d = []
 			for c in comm:
 				if "comm" in c:
@@ -214,11 +218,13 @@ class Cricbuzz():
 			return data
 		except Exception:
 			raise
-	def players(self,mid):
+
+	async def players(self,mid):
 		data = {}
 		try:
 			url =  "https://www.cricbuzz.com/match-api/"+mid+"/commentary.json"
-			players = self.crawl_url(url).get('players')
+			players = await self.crawl_url(url)
+			players = players.get('players')
 			d = []
 			for c in players:
 				if "player" in c:
